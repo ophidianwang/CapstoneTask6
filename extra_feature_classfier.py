@@ -3,10 +3,12 @@
 import math
 import json
 import random
+import logging
 import numpy as np
 from numpy import zeros
 from gensim import models
 from gensim import matutils
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
@@ -15,7 +17,7 @@ from time import time
 label_file_path = "Hygiene/hygiene.dat.labels"
 text_file_path = "Hygiene/hygiene.dat"
 additional_file_path = "Hygiene/hygiene.dat.additional"
-testing_label_path = "data/testing.labels"
+testing_label_path = "data/testing.additional.labels"
 
 def getLabel(file_path):
     """
@@ -71,7 +73,26 @@ def main():
 
     #parse additional
     hy_additional = getAdditional(additional_file_path)
-    return
+
+    #make categories be vector
+    cat_text = []
+    for single in hy_additional:
+        catgories = single['cat']
+        cat_text.append( " ".join(catgories) )
+
+    cat_vectorizer = CountVectorizer(binary=True)
+    t0 = time()
+    cat_vec = cat_vectorizer.fit_transform(cat_text)
+    print("vectorize done in %fs" % (time() - t0))
+    print("n_samples: %d, n_features: %d" % cat_vec.shape)
+
+    t0 = time()
+    cat_corpus = matutils.Sparse2Corpus(cat_vec,  documents_columns=False)
+    print("transform category corpus done in %fs" % (time() - t0))
+
+    cat_lda = models.ldamodel.LdaModel(cat_corpus, num_topics=10)
+    print("category lda done in %fs" % (time() - t0))
+    cat_topics = cat_lda.get_document_topics(cat_corpus)
 
     #parse label
     hy_labels = getLabel(label_file_path)
@@ -80,8 +101,6 @@ def main():
     #parse text
     hy_text = getText(text_file_path)
     print(str(len( hy_text)) + " texts")
-
-    
 
     #tfidf vectorize text
     vectorizer = TfidfVectorizer(max_df=0.5, max_features=10000, min_df=2, stop_words='english', use_idf=True)
@@ -100,20 +119,25 @@ def main():
     print("lda done in %fs" % (time() - t0))
     text_topics = lda.get_document_topics(corpus)
 
-    text_topics_list = []
-    with open( 'topic_distribution.log', 'w') as f:
-        for k, top_dis in enumerate(text_topics):
+    #mixture of cat_topic_prob and text_topic_prob
+    mix_topics_list = []
+    for k, top_dis in enumerate(text_topics):
+        top_dis_array = zeros(110)
+        for (index, value) in top_dis:
+            top_dis_array[index] = value*9/10
+
+        mix_topics_list.append(top_dis_array)
+
+    for k, cat_top_dis in enumerate(cat_topics):
+        for (index, value) in cat_top_dis:
+            mix_topics_list[k][100+index] = value/10
+    
+    with open( 'mix_topic_distribution.log', 'w') as f:
+        for k, top_dis in enumerate(mix_topics_list):
             f.write(str(top_dis))
-            f.write("\n")
+            f.write("\n==========\n")
 
-            top_dis_array = zeros(100)
-            for (index, value) in top_dis:
-                top_dis_array[index] = value
-
-            text_topics_list.append(top_dis_array)
-
-    # the first N topic prob. distributions are traing_data
-    training_data = np.array( text_topics_list[:len(hy_labels)] )
+    training_data = np.array( mix_topics_list[:len(hy_labels)] )
 
     #train classifier, support vector machine or KNN (with topic probability)
     clf = KNeighborsClassifier( n_neighbors=5, weights='distance' )
@@ -122,12 +146,12 @@ def main():
     clf.fit( training_data, np.array(hy_labels) )
     print("classifier training done in %fs" % (time() - t0))
 
-    #predict label of the testing_text
-    testing_label = clf.predict( np.array(text_topics_list) )
-    testing_proba = clf.predict_proba( np.array(text_topics_list) )
+    #predict label of the testing_text and categories mixture
+    testing_label = clf.predict( np.array(mix_topics_list) )
+    testing_proba = clf.predict_proba( np.array(mix_topics_list) )
 
     #log file for debug
-    with open("testing_proba.log","w") as log_file:
+    with open("testing_mix_proba.log","w") as log_file:
         for class_proba in testing_proba:
             log_file.write( str(class_proba) + "\n" )
 
