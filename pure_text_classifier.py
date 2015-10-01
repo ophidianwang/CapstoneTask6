@@ -19,6 +19,7 @@ testing_label_path = "data/testing.labels"
 
 def getLabel(file_path):
     """
+        parse label
         return list of labels, 1 means passed, 2 means not
     """
     return_labels = []
@@ -35,6 +36,7 @@ def getLabel(file_path):
 
 def getText(file_path):
     """
+        parse textual information (need some transform)
         return list of texts
     """
     return_texts = []
@@ -44,7 +46,26 @@ def getText(file_path):
     return return_texts
 
 def getAdditional(file_path):
-    return []
+    """
+        parse non-textual information (need some transform)
+        return list of additional information dict
+    """
+    return_additional = []
+    with open(file_path , "r") as additional_file:
+        for line in additional_file:
+            tmp = line.strip().split('"')
+            cat_in_string = tmp[1]
+            cat_in_list = cat_in_string[2:-2].split("', '")
+            numbers = tmp[2].split(",")[1:]
+            single = {
+                "cat":cat_in_list,
+                "zip":numbers[0],
+                "rev_num":numbers[1],
+                "avg_stars":numbers[2]
+            }
+            return_additional.append(single)
+
+    return return_additional
 
 def main():
 
@@ -52,12 +73,12 @@ def main():
     hy_labels = getLabel(label_file_path);
     print(str(len( hy_labels)) + " labels")
 
-    #parse source text to two list, training_text and testing_text
+    #parse text
     hy_text = getText(text_file_path);
     print(str(len( hy_text)) + " texts")
 
     #tfidf vectorize text
-    vectorizer = TfidfVectorizer(max_df=0.5, max_features=10000, min_df=2, stop_words='english', use_idf=True)
+    vectorizer = TfidfVectorizer(max_df=0.5, max_features=30000, min_df=2, stop_words='english', use_idf=True)
     t0 = time()
     X = vectorizer.fit_transform(hy_text)
     print("vectorize done in %fs" % (time() - t0))
