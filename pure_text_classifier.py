@@ -15,6 +15,7 @@ from time import time
 label_file_path = "Hygiene/hygiene.dat.labels"
 text_file_path = "Hygiene/hygiene.dat"
 additional_file_path = "Hygiene/hygiene.dat.additional"
+testing_label_path = "data/testing.labels"
 
 def getLabel(file_path):
     """
@@ -27,7 +28,7 @@ def getLabel(file_path):
                 if( int( line.strip() ) == 1):
                     return_labels.append(1)
                 else:
-                    return_labels.append(2)
+                    return_labels.append(0)
             except:
                 break
     return return_labels
@@ -95,15 +96,18 @@ def main():
     print("classifier training done in %fs" % (time() - t0))
 
     #predict label of the testing_text
-    testing_label = []
-    for cursor, top_dis_array in enumerate(text_topics_list):
-        class_proba = clf.predict_proba( top_dis_array )
-        testing_label.append(class_proba)
+    testing_label = clf.predict( np.array(text_topics_list) )
+    testing_proba = clf.predict_proba( np.array(text_topics_list) )
 
     #log file for debug
-    with open("class_proba.log","w") as log_file:
-        for class_proba in testing_label:
+    with open("testing_proba.log","w") as log_file:
+        for class_proba in testing_proba:
             log_file.write( str(class_proba) + "\n" )
+
+    #classifier result
+    with open(testing_label_path,"w") as testing_label_file:
+        for label in testing_label:
+            testing_label_file.write( str(label) + "\n" )
 
 if __name__=="__main__":
     main()
