@@ -133,7 +133,7 @@ def main():
         mixture_proba[i]["num_svm"] = class_proba
 
     #tfidf vectorize text
-    vectorizer = TfidfVectorizer(max_df=0.5, max_features=30000, min_df=3, stop_words='english', use_idf=True)
+    vectorizer = TfidfVectorizer(max_df=0.5, max_features=30000, min_df=2, stop_words='english', use_idf=True)
     t0 = time()
     X = vectorizer.fit_transform(hy_text)
     print("vectorize done in %fs" % (time() - t0))
@@ -160,11 +160,17 @@ def main():
             log_file.write( str(single) + "\n" )
 
     #classifier result
+    all_prob_vector = []
     with open(testing_label_path,"w") as testing_label_file:
         for single in mixture_proba:
             fail_chance = 1
             pass_chance = 1
+            prob_vector = []
             for key in single:
+
+                prob_vector.append( float(single[key][0]) )
+                prob_vector.append( float(single[key][1]) )
+
                 fail_chance = fail_chance * float(single[key][0])
                 pass_chance = pass_chance * float(single[key][1])
             if(pass_chance >= fail_chance):
@@ -172,6 +178,18 @@ def main():
             else:
                 testing_label_file.write( str(0) + "\n" )
 
+            all_prob_vector.append(prob_vector)
+    all_prob_vector = np.array( all_prob_vector ) 
+
+    #use multiple probability to svm again
+    clf = SVC(probability=True)
+    t0 = time()
+    clf.fit( all_prob_vector[:len(hy_labels)] , np.array(hy_labels) )
+    print("probability svm classifier training done in %fs" % (time() - t0))
+    testing_label = clf.predict( all_prob_vector )
+    with open(testing_label_path+".custom","w") as testing_label_file:
+        for label in testing_label:
+            testing_label_file.write( str(label)+"\n" )
 
 if __name__=="__main__":
     main()
