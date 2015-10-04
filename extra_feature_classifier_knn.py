@@ -85,12 +85,13 @@ def main():
     hy_additional = getAdditional(additional_file_path)
 
     cat_text = []   #make categories be vector
-    num_rating = [] #number of reviews and rating
-    review_num = [] #
+    rating = [] #rating
+    review_num = [] #number of reviews
     for single in hy_additional:
         catgories = single['cat']
         cat_text.append( " ".join(catgories) )
-        review_num.append( [single['rev_num'], single['avg_stars']] )
+        rating.append( single['avg_stars'] )
+        review_num.append( single['rev_num'] )
 
     #calculate proba from categories
     cat_vectorizer = CountVectorizer(binary=True)
@@ -109,15 +110,27 @@ def main():
         single = { "cat_knn":class_proba }
         mixture_proba.append(single)
 
-    #calculate proba from review number and rating
+    #calculate proba from rating
+    reshape_rating = np.array( rating ).reshape(-1,1)
     clf = SVC(probability=True)
     t0 = time()
-    clf.fit( review_num[:len(hy_labels)] , np.array(hy_labels) )
+    clf.fit( reshape_rating[:len(hy_labels)] , np.array(hy_labels) )
     print("rating svm classifier training done in %fs" % (time() - t0))
-    testing_proba = clf.predict_proba( review_num )
+    testing_proba = clf.predict_proba( reshape_rating )
 
     for i,class_proba in enumerate(testing_proba):
-        mixture_proba[i]["num_rat_svm"] = class_proba
+        mixture_proba[i]["rat_svm"] = class_proba
+
+    #calculate proba from review number
+    reshape_review_num = np.array( review_num ).reshape(-1,1)
+    clf = SVC(probability=True)
+    t0 = time()
+    clf.fit( reshape_review_num[:len(hy_labels)] , np.array(hy_labels) )
+    print("review number svm classifier training done in %fs" % (time() - t0))
+    testing_proba = clf.predict_proba( reshape_review_num )
+
+    for i,class_proba in enumerate(testing_proba):
+        mixture_proba[i]["num_svm"] = class_proba
 
     #tfidf vectorize text
     vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english', use_idf=True)
