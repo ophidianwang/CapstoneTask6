@@ -133,7 +133,7 @@ def main():
         mixture_proba[i]["num_svm"] = class_proba
 
     #tfidf vectorize text
-    vectorizer = TfidfVectorizer(max_df=0.5, max_features=30000, min_df=2, stop_words='english', use_idf=True)
+    vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, stop_words='english', use_idf=True)
     t0 = time()
     X = vectorizer.fit_transform(hy_text)
     print("vectorize done in %fs" % (time() - t0))
