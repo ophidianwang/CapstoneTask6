@@ -100,7 +100,7 @@ def main():
     print("vectorize done in %fs" % (time() - t0))
     print("n_samples: %d, n_features: %d" % cat_vec.shape)
 
-    clf = KNeighborsClassifier( n_neighbors=5, weights='distance' )
+    clf = KNeighborsClassifier( n_neighbors=5, weights='uniform' )
     t0 = time()
     clf.fit( cat_vec[:len(hy_labels)], np.array(hy_labels) )
     print("category knn classifier training done in %fs" % (time() - t0))
@@ -165,8 +165,6 @@ def main():
             fail_chance = 1
             pass_chance = 1
             for key in single:
-                if(key == "cat_knn"):
-                    continue
                 fail_chance = fail_chance * float(single[key][0])
                 pass_chance = pass_chance * float(single[key][1])
             if(pass_chance >= fail_chance):
