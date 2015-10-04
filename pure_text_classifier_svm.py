@@ -15,7 +15,7 @@ from time import time
 label_file_path = "Hygiene/hygiene.dat.labels"
 text_file_path = "Hygiene/hygiene.dat"
 additional_file_path = "Hygiene/hygiene.dat.additional"
-testing_label_path = "data/testing.labels"
+testing_label_path = "data/pure_text_svm.labels"
 
 def getLabel(file_path):
     """
@@ -88,37 +88,20 @@ def main():
     corpus = matutils.Sparse2Corpus(X,  documents_columns=False)
     print("transform corpus done in %fs" % (time() - t0))
 
-    #lda topic modeling on text
-    t0 = time()
-    lda = models.ldamodel.LdaModel(corpus, num_topics=100)
-    print("lda done in %fs" % (time() - t0))
-    text_topics = lda.get_document_topics(corpus)
-
-    text_topics_list = []
-    with open( 'topic_distribution.log', 'w') as f:
-        for k, top_dis in enumerate(text_topics):
-            f.write(str(top_dis))
-            f.write("\n")
-
-            top_dis_array = zeros(100)
-            for (index, value) in top_dis:
-                top_dis_array[index] = value
-
-            text_topics_list.append(top_dis_array)
-
     # the first N topic prob. distributions are traing_data
-    training_data = np.array( text_topics_list[:len(hy_labels)] )
+    training_data = X[:len(hy_labels)]
+    print("training_n_samples: %d, training_n_features: %d" % training_data.shape)
 
     #train classifier, support vector machine or KNN (with topic probability)
-    clf = KNeighborsClassifier( n_neighbors=5, weights='distance' )
-    #clf = SVC(probability=True)
+    #clf = KNeighborsClassifier( n_neighbors=5, weights='distance' )
+    clf = SVC(probability=True)
     t0 = time()
     clf.fit( training_data, np.array(hy_labels) )
     print("classifier training done in %fs" % (time() - t0))
 
     #predict label of the testing_text
-    testing_label = clf.predict( np.array(text_topics_list) )
-    testing_proba = clf.predict_proba( np.array(text_topics_list) )
+    testing_label = clf.predict( X )
+    testing_proba = clf.predict_proba( X )
 
     #log file for debug
     with open("testing_proba.log","w") as log_file:
